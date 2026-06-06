@@ -2,12 +2,14 @@ name: deep-audio
 channels:
   - conda-forge
 dependencies:
-  - python=3.11
-  - pip
-  - pytorch-cuda=12.4
-  - jupyter
-  - matplotlib
-  - python-dotenv
   - ffmpeg
-  - libsndfile
+  - huggingface_hub
+  - jupyter
   - librosa
+  - libsndfile
+  - matplotlib
+  - pandas
+  - pip
+  - python=3.11
+  - python-dotenv
+
