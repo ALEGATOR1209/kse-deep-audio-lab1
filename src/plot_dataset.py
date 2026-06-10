@@ -1,6 +1,8 @@
+import librosa
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
-
+import numpy as np
+import IPython.display as ipd
 
 def plot_gender(df, ax=None, suffix=''):
     if ax is None:
@@ -112,3 +114,26 @@ def plot_dataset(df, suffix=''):
 
     fig.tight_layout()
     return fig
+
+def plot_sample(sample):
+    y, sr = librosa.load(sample['path'], sr=sample['sr'])
+
+    stfy_y = np.abs(librosa.stft(y))
+    stfy_y = librosa.amplitude_to_db(stfy_y, ref=np.max)
+
+    print(f"Audio shape: {y.shape}, Sample rate: {sr}")
+    print(sample)
+    print(f"Audio duration: {len(y) / sr:.2f} seconds")
+
+    fig, ax = plt.subplots(ncols=2, figsize=(20, 4))
+    ax[0].plot(y)
+
+    img = ax[1].imshow(stfy_y, aspect='auto', origin='lower', extent=[0, len(y)/sr, 0, sr/2])
+    ax[1].set_xlabel('Time')
+    ax[1].set_ylabel('Hz (dB scale)')
+    fig.colorbar(img, ax=ax[1], format='%+2.0f dB')
+
+    fig.tight_layout()
+    fig.show()
+
+    return ipd.Audio(sample['path'])

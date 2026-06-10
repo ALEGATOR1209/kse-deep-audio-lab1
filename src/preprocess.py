@@ -1,42 +1,83 @@
-import librosa
 import numpy as np
+import os
+from . import audiotools as at
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from sklearn.preprocessing import LabelEncoder
 
-def load_audio(dir, sample, sr=None):
-  path = dir/sample['filename']
-  y, sample_sr = librosa.load(path, sr=sr)
+sexLe = LabelEncoder()
+emotionLe = LabelEncoder()
 
-  if sr:
-    assert sr == sample_sr
+def _process_sample(args):
+  i, sample = args
 
-  return y
+  amps = at.load_audio(sample)
+  sp = at.spectrogram(amps)
+  
+  mfcc_value = at.mfcc(amps, sample['sr']).mean(axis=1)
+  mfcc_std = at.mfcc(amps, sample['sr']).std(axis=1)
+  (f0_value, _, _) = at.f0(amps, sample['sr'])
+  f0_value = np.nanmean(f0_value)
+  rms_value = at.rms(sp).mean(axis=1)
+  zcr_value = at.zcr(amps).mean(axis=1)
 
-def spectrogram(amps):
-    return np.abs(librosa.stft(amps))
+  return i, {
+      'mfcc': mfcc_value,
+      'mfcc_std': mfcc_std,
+      'f0': f0_value,
+      'rms': rms_value,
+      'zcr': zcr_value,
+  }
 
-def db_spectrogram(s):
-  db = librosa.amplitude_to_db(s, ref=np.max)
+def prepare_for_ml(df):
+  total = len(df)
+  args = [(i, row) for i, row in df.iterrows()]
 
-  return db
+  results = [None] * total
 
-def mel_spectrogram(amps, sr):
-  mel = librosa.feature.melspectrogram(y=amps, sr=sr)
-  db = librosa.amplitude_to_db(mel, ref=np.max)
+  with ProcessPoolExecutor(max_workers=max(os.cpu_count() - 2, 1)) as executor:
+      futures = {executor.submit(_process_sample, arg): arg[0] for arg in args}
 
-  return db
+      print(f"Processed 0/{total} samples...")
+      for done, future in enumerate(as_completed(futures), start=1):
+          i, feat = future.result()
+          if done % 100 == 0 or done == total:
+            print(f"Processed {done}/{total} samples...")
+          results[i] = feat
 
-def mfcc(amps, sr):
-  return librosa.feature.mfcc(y=amps, sr=sr)
+  features = results
 
-def f0(amps, sr):
-  return librosa.pyin(
-    y=amps,
-    sr=sr,
-    fmin=librosa.note_to_hz('C2'),
-    fmax=librosa.note_to_hz('C7'),
-  )
+  df['mfcc'] = [f['mfcc'] for f in features]
+  df['mfcc_std'] = [f['mfcc_std'] for f in features]
+  df['f0'] = [f['f0'] for f in features]
+  df['rms'] = [f['rms'] for f in features]
+  df['zcr'] = [f['zcr'] for f in features]
 
-def rms(s):
-  return librosa.feature.rms(S=s)
+  return df
 
-def zcr(amps):
-  return librosa.feature.zero_crossing_rate(amps)
+def to_xy(df, label_col='emotion'):
+  sexLe.fit(df['sex'])
+  emotionLe.fit(df[label_col])
+
+  X = np.array([
+    np.concatenate([
+      [sexLe.transform([row.sex])[0]],
+      [row.f0],
+      row.mfcc,
+      row.mfcc_std,
+      row.rms,
+      row.zcr,
+    ])
+    for row in df.itertuples()
+  ])
+
+  y = emotionLe.transform(df[label_col])
+
+  return X, y
+
+def save_xy(file, x, y):
+   np.savez(file, X=x, Y=y)
+   print(f"Saved X ({x.shape}) and Y ({y.shape})  to {file}")
+
+def load_xy(file):
+  data = np.load(file)
+  return data['X'], data['Y']
