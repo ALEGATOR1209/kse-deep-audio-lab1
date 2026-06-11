@@ -1,8 +1,10 @@
 import numpy as np
 import os
+import warnings
 from . import audiotools as at
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from sklearn.preprocessing import LabelEncoder
+from tqdm.notebook import tqdm
 
 sexLe = LabelEncoder()
 emotionLe = LabelEncoder()
@@ -12,7 +14,7 @@ def _process_sample(args):
 
   amps = at.load_audio(sample)
   sp = at.spectrogram(amps)
-  
+
   mfcc_value = at.mfcc(amps, sample['sr']).mean(axis=1)
   mfcc_std = at.mfcc(amps, sample['sr']).std(axis=1)
   (f0_value, _, _) = at.f0(amps, sample['sr'])
@@ -28,27 +30,26 @@ def _process_sample(args):
       'zcr': zcr_value,
   }
 
-def prepare_for_ml(df):
+def extract_features(df, progress_bar_desc):
   total = len(df)
   args = [(i, row) for i, row in df.iterrows()]
 
   results = [None] * total
 
-  with ProcessPoolExecutor(max_workers=max(os.cpu_count() - 2, 1)) as executor:
-      futures = {executor.submit(_process_sample, arg): arg[0] for arg in args}
+  with warnings.catch_warnings():
+    warnings.simplefilter("ignore", RuntimeWarning)
+    with ProcessPoolExecutor(max_workers=max(os.cpu_count() - 2, 1)) as executor:
+        futures = {executor.submit(_process_sample, arg): arg[0] for arg in args}
 
-      print(f"Processed 0/{total} samples...")
-      for done, future in enumerate(as_completed(futures), start=1):
+        for _, future in tqdm(enumerate(as_completed(futures), start=1), total=total, desc=progress_bar_desc, ascii="░▒█"):
           i, feat = future.result()
-          if done % 100 == 0 or done == total:
-            print(f"Processed {done}/{total} samples...")
           results[i] = feat
 
   features = results
 
   df['mfcc'] = [f['mfcc'] for f in features]
   df['mfcc_std'] = [f['mfcc_std'] for f in features]
-  df['f0'] = [f['f0'] for f in features]
+  df['f0'] = np.nan_to_num([f['f0'] for f in features], nan=0.0, posinf=0.0, neginf=0.0)
   df['rms'] = [f['rms'] for f in features]
   df['zcr'] = [f['zcr'] for f in features]
 
@@ -73,11 +74,3 @@ def to_xy(df, label_col='emotion'):
   y = emotionLe.transform(df[label_col])
 
   return X, y
-
-def save_xy(file, x, y):
-   np.savez(file, X=x, Y=y)
-   print(f"Saved X ({x.shape}) and Y ({y.shape})  to {file}")
-
-def load_xy(file):
-  data = np.load(file)
-  return data['X'], data['Y']

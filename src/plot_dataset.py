@@ -115,8 +115,8 @@ def plot_dataset(df, suffix=''):
     fig.tight_layout()
     return fig
 
-def plot_sample(sample):
-    y, sr = librosa.load(sample['path'], sr=sample['sr'])
+def plot_sample(sample, path_prop='path', normalize=True):
+    y, sr = librosa.load(sample[path_prop], sr=sample['sr'])
 
     stfy_y = np.abs(librosa.stft(y))
     stfy_y = librosa.amplitude_to_db(stfy_y, ref=np.max)
@@ -136,4 +136,4 @@ def plot_sample(sample):
     fig.tight_layout()
     fig.show()
 
-    return ipd.Audio(sample['path'])
+    return ipd.Audio(sample[path_prop], normalize=normalize)
