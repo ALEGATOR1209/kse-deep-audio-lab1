@@ -46,17 +46,20 @@ def time_stretch(df, samples_dir, target_rms, progress_bar_desc, records, range_
     path = f"{samples_dir}/{row['filename'].split('.')[0]}_stretched.wav"
     _save_and_record(y, row['sr'], path, row, 'stretched', records)
 
+def time_shift(df, samples_dir, target_rms, progress_bar_desc, records, rangeMin=-0.1, rangeMax=0.1):
+    for _, row in tqdm(df.iterrows(), total=len(df), desc=progress_bar_desc, ascii="░▒█"):
+        y = load_audio(row)
+        shift = int(np.random.uniform(rangeMin, rangeMax) * len(y))
 
-def time_shift(df, samples_dir, target_rms, progress_bar_desc, records, range=range(-5, 5)):
-  for _, row in tqdm(df.iterrows(), total=len(df), desc=progress_bar_desc, ascii="░▒█"):
-    y = load_audio(row)
-    shift = int(np.random.uniform(range.start, range.stop) * row['sr'])
-    y = np.roll(y, shift)
-    y = rms_normalization(y, target_rms)
-    y = peak_normalization(y)
-    path = f"{samples_dir}/{row['filename'].split('.')[0]}_shifted.wav"
-    _save_and_record(y, row['sr'], path, row, 'shifted', records)
+        if shift > 0:
+            y = np.concatenate([np.zeros(shift), y[:-shift]])
+        elif shift < 0:
+            y = np.concatenate([y[-shift:], np.zeros(-shift)])
 
+        y = rms_normalization(y, target_rms)
+        y = peak_normalization(y)
+        path = f"{samples_dir}/{row['filename'].split('.')[0]}_shifted.wav"
+        _save_and_record(y, row['sr'], path, row, 'shifted', records)
 
 def lower_speed(df, samples_dir, target_rms, progress_bar_desc, records, rate=0.75):
   for _, row in tqdm(df.iterrows(), total=len(df), desc=progress_bar_desc, ascii="░▒█"):

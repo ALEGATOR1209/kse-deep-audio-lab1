@@ -74,3 +74,13 @@ def to_xy(df, label_col='emotion'):
   y = emotionLe.transform(df[label_col])
 
   return X, y
+
+def get_xy_feature_names():
+  return (
+    ['sex']
+    + ['f0']
+    + [f'mfcc_{i}' for i in range(20)]
+    + [f'mfcc_std_{i}' for i in range(20)]
+    + ['rms']
+    + ['zcr']
+  )
