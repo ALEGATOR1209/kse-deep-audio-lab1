@@ -126,3 +126,11 @@ $\color{red}{\text{TODO}}$
 
 1. S. K. Panda, A. K. Jena, M. R. Panda, and S. Panda, “Speech emotion recognition using multimodal feature fusion with machine learning approach,” Multimedia Tools and Applications, Apr. 2023, doi: https://doi.org/10.1007/s11042-023-15275-3.
 ‌
+## AI Use Disclosure
+
+Claude Code was used for questions, explanation of audio theory, debugging conda and Python issues, literature review, code generation (visualizations, repetitive functions for data augmentation, and in cases where we didn't know how to do something specific in Python). All the generated code was reviewed and most of it tweaked. The vast majority of the code is human written as is this report.
+
+Full transcripts of our Claude conversations are available by the following links:
+
+1. https://claude.ai/share/66b29df7-551b-415f-a931-c94dce5ee246
+2. https://claude.ai/share/83f3f876-5ebd-4d82-bec0-a349313776ed
