@@ -112,6 +112,8 @@ The best obtained classifier was trained using all the augmentations but noise. 
 
 The biggest problems were with identification of sad samples while happy and neutral ones were generally well distinguished (_Fig. 4_). The most influential feature was the base frequency (F0). The least influential was RMS, which is explained by the prior normalization against it.
 
+Finally, we also explored support-vector classifier and XGBoost but their performance was equal-or-worse than that of RandomForest.
+
 ## Classification With Deep Learning Approaches
 
 $\color{red}{\text{TODO}}$
