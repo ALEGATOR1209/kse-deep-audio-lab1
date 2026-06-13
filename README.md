@@ -69,7 +69,7 @@ After each augmentation, the resulting synthetic sample was normalized as descri
   <br>
   <img src="img/embedded-spedup.png" alt="" width="75%">
   <br>
-  <em>Figure 3. Different augmentations of the same sample. Waveform and spectrogram (dB) representation</em>
+  <em>Figure 3. Different augmentations of the same sample.<br>Waveform and spectrogram (dB) representation</em>
 </div>
 
 ### Feature Extraction
@@ -77,6 +77,40 @@ After each augmentation, the resulting synthetic sample was normalized as descri
 Following features were extracted for each sample for the classification task using machine learning methods: (1) means of 20  Mel-Frequency Cepstral Coefficients (MFCC), (2) standard deviations of 20 MFCC, (3) fundamental frequency (F0), (4) mean Root-Mean Square value (RMS), (5) mean Zero-Crossing Rate (ZCR).
 
 ## Classification With Spectral Features
+
+To establish the baseline for the deep learning approaches, we fitted the input dataset to sklearn Random Forest classifier and validated it on the test dataset. Author-defined test-train folds were used. We explored different combinations of synthetic samples (e.g. using only original data, excluding time modifications, noise, etc).
+
+To find the values for RF hyperparameters, we used sklearn `RandomizedSearchCV` class. Number of iterations was set 20, and 5-fold cross-validation was used. Scoring function was set to UAR. Accuracy, Precision, Recall and F1 Score were used to evaluate the model performance.
+
+First, we fitted Random Forest to un-normalized, un-augmented train dataset just as it is. We obtained the following results:
+
+| Metric    | Value |
+|-----------|-------|
+| Accuracy  | 0.54  |
+| Precision | 0.56  |
+| Recall    | 0.55  |
+| F1 Score  | 0.55  |
+
+Then we included normalized and synthetic data. We discovered that the inclusion of noise actually reduces the model's performance while all other types of synthetic samples imrove it to different extent. This effect can be explained by excessive noise, but we did not pursue this analysis any deeper.
+
+Overall, we tried to reproduce the pipeline from strange Indian paper of questionable quality [1] because they claim the remarkable accuracy of 80%+ on three datasets (TESS, SAVEE, CREMA-D) all of which include 4+ emotion classes. But in our case, the performance was nowhere near that level. This can be explained by the dataset quality and sample count differences. Also, they didn't publish the exact hyperparameters and details of synthetic data generation. Also, there is the big difference that they seem to include the whole MEL spectrogram in input. Upon the consultation with AI we decided against it, and included MFCC standard deviation instead.
+
+The best obtained classifier was trained using all the augmentations but noise. The hyperparameters were the following: `n_estimators`: 561, `min_samples_split`: 35, `min_samples_leaf`: 6, `max_depth`: 212. The resulting performance was as follows:
+
+| Metric    | Value |
+|-----------|-------|
+| Accuracy  | 0.58  |
+| Precision | 0.60  |
+| Recall    | 0.59  |
+| F1 Score  | 0.59  |
+
+<div align="center">
+  <img src="img/rf-confusion-matrix.png" alt="">
+  <br>
+  <em>Figure 4. RandomForest confusion matrix and feature importance</em>
+</div>
+
+The biggest problems were with identification of sad samples while happy and neutral ones were generally well distinguished (_Fig. 4_). The most influential feature was the base frequency (F0). The least influential was RMS, which is explained by the prior normalization against it.
 
 ## Classification With Deep Learning Approaches
 
