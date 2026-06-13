@@ -115,7 +115,7 @@ def plot_dataset(df, suffix=''):
     fig.tight_layout()
     return fig
 
-def plot_sample(sample, path_prop='path', normalize=True):
+def plot_sample(sample, path_prop='path', normalize=True, title=''):
     y, sr = librosa.load(sample[path_prop], sr=sample['sr'])
 
     stfy_y = np.abs(librosa.stft(y))
@@ -132,6 +132,9 @@ def plot_sample(sample, path_prop='path', normalize=True):
     ax[1].set_xlabel('Time')
     ax[1].set_ylabel('Hz (dB scale)')
     fig.colorbar(img, ax=ax[1], format='%+2.0f dB')
+
+    if title:
+        fig.suptitle(title, fontsize=14)
 
     fig.tight_layout()
     fig.show()
