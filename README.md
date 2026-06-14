@@ -27,7 +27,61 @@ We additionally explored the existing train/test split created by the dataset au
 
 ## Validation Strategy & Metric Selection
 
-$\color{red}{\text{TODO}}$
+the formula for UAR is
+
+$$\text{UAR} = \frac{1}{N} \sum_{i=1}^{N} \frac{TP_i}{TP_i + FN_i}$$
+
+where:
+- $N$ — number of classes
+- $TP_i$ — true positives of class $i$, correctly predicted as $i$
+- $FN_i$ — false negatives of class $i$, actually class $i$ but predicted as something else
+- $TP_i + FN_i$ — total true samples of class $i$
+
+
+### Strength
+handles class imbalance(as we somewhat have in the dataset), each class contribute equally   
+reflects real goal of class prediction, that's what we care about   
+kind of a standart across datasets   
+
+### Weaknessses  
+ignores precision  
+doesnt account for false positives  
+doesnt account for sample size, results may be equal, but it could be just by a random chance  
+all classes are equal, that is not always the case  
+
+### Edge cases  
+zero samples - division by 0  
+small amount of samples for the class might drive scoring up while having a lot of false positives(could be the case for male saddness in the dataset)  
+one poorly predicted class will drag others with itself 
+
+### Complementary metrics 
+it would be usefull to capture false positives, also to check individual recalls of the classes, check results agains sample sizes of expected classes, compare prediction of samples of different genders
+
+### Alternative target metric
+
+$$\text{macro-F1} = \frac{1}{N} \sum_{i=1}^{N} \frac{2 \cdot P_i \cdot R_i}{P_i + R_i}$$
+
+where:
+- $P_i = \dfrac{TP_i}{TP_i + FP_i}$ — precision, of those predicted $i$, how many were right
+- $R_i = \dfrac{TP_i}{TP_i + FN_i}$ — recall, of actual $i$, how many were caught
+
+## Validation
+
+<div align="center">
+  <img src="img/validation.png" alt="" width="75%">
+</div>
+
+### Motivation for chosen strategy
+the core idea of the split is to keep speakers separated to prevent the data leakage and then to keep the distribution as similar as possible
+its important to keep the data distribution similar to prevent biases - e.g if the model is trained on mostly positive emotions, it will poorly predict/distinguish between neutral-sad ones  
+even though the data distribution of emotions is similar, at the gender level we can see that neutral emotions are coming from male samples and sad ones from female samples. even if we were to account for a similar emotion distribution, it would bias toward female sadness and male neutral emotions, and we would have a similar problem to the one described above  
+
+the approach is to first group the data by speaker_id and greedily stratify gender/emotion pairs. luckily for us, there is already a function for that and we dont have to implement it ourselves. it's also already shaped for the k-fold validation approach, in case we proceed with it
+
+### Challenges of achieving balanced class distributions
+distribution of emotions in the real world  
+distinguishing between similar emotions   
+emotion is not a boolean/signle label value  
 
 ## Preprocessing
 
@@ -116,15 +170,46 @@ Finally, we also explored support-vector classifier and XGBoost but their perfor
 
 ## Classification With Deep Learning Approaches
 
-$\color{red}{\text{TODO}}$
+We've tried two models: wav2vec2-xls-r-300m-uk and emotion2vec
+
+## Results
+
+### Handcrafted features — RandomForest
+
+Best params: `n_estimators=561, min_samples_split=35, min_samples_leaf=6, max_depth=212`
+
+| Accuracy | Precision | Recall (UAR) | F1 |
+|----------|-----------|--------------|-------|
+| 0.575    | 0.583     | 0.582        | 0.583 |
+
+### Self-supervised
+
+| model | version | UAR | acc | macro-F1 |
+|-------|---------|-------|-------|-------|
+| wav2vec2-xls-r-300m-uk, fine-tune (last 4 layers) | default    | 0.364 | 0.340 | 0.273 |
+| wav2vec2-xls-r-300m-uk, fine-tune (last 4 layers) | normalized | 0.365 | 0.340 | 0.276 |
+| wav2vec2-xls-r-300m-uk, fine-tune (last 4 layers) | augmented  | 0.479 | 0.471 | 0.471 |
+| wav2vec2-xls-r-300m-uk, head-only                 | default    | 0.361 | 0.353 | 0.308 |
+| wav2vec2-xls-r-300m-uk, head-only                 | normalized | 0.367 | 0.359 | 0.313 |
+| wav2vec2-xls-r-300m-uk, head-only                 | augmented  | —     | —     | —     |  
+| emotion2vec_base, frozen + MLP head               | default    | 0.543 | 0.536 | 0.531 |
+| emotion2vec_base, frozen + MLP head               | normalized | 0.486 | 0.490 | 0.486 |
+| emotion2vec_base, frozen + MLP head               | augmented  | 0.556 | 0.553 | 0.550 |
+
+SS setup performed worse than the random forest, so not really adequate in our case
 
 ## Conclusion
 
-$\color{red}{\text{TODO}}$
+**wav2vec2 performed worse then emotion2vec on the same dataset in our self-supervised setup**
+
+overall random-forest in our case overperformed both of than both of the models, but in comparison to the author's work the similar results are only compared to the wav2vec model(around 0.6). it could be explained poor hyperparam choises(4 vs 18 unfrozen blocks, 8 vs 50 epochs, 4 vs 16 batch sizes) and the skill differences(issues).
+
+the only thing that might be better in our case is that we've done stratification taking into account both gender and emotion on contrary to only emotions in the author's case, that might've resulted in better distribution of samples
 
 ## References
 
 1. S. K. Panda, A. K. Jena, M. R. Panda, and S. Panda, “Speech emotion recognition using multimodal feature fusion with machine learning approach,” Multimedia Tools and Applications, Apr. 2023, doi: https://doi.org/10.1007/s11042-023-15275-3.
+2. https://discuss.huggingface.co/t/wav2vec2-how-to-correct-for-nan-in-training-and-validation-loss/6089/11
 ‌
 ## AI Use Disclosure
 
@@ -134,3 +219,5 @@ Full transcripts of our Claude conversations are available by the following link
 
 1. https://claude.ai/share/66b29df7-551b-415f-a931-c94dce5ee246
 2. https://claude.ai/share/83f3f876-5ebd-4d82-bec0-a349313776ed
+3. https://claude.ai/share/09fbdc5d-fea7-4883-9759-a4011fbb483c
+4. 
